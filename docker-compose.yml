@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  particles:
+    build: .
+    image: particles
+    container_name: particles
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: sleep infinity

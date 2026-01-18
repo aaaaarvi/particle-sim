@@ -1,12 +1,9 @@
 #pragma once
 
-#include <Windows.h>
-#include "Vector.h"
+#include <X11/Xlib.h>
+#include <vector>
 
-LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-class MyWindow
-{
+class MyWindow {
 public:
     MyWindow(int width, int height, int offset_w, int offset_h);
     MyWindow(int width, int height) : MyWindow(width, height, 100, 100) {};
@@ -23,6 +20,9 @@ private:
     int m_height;
     int m_offset_w;
     int m_offset_h;
-    HINSTANCE m_hInstance;
-    HWND m_hWnd;
+    Display* m_display;
+    ::Window m_window;
+    int m_screen;
+    GC m_gc;
+    Atom m_wmDelete;
 };

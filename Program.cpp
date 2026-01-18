@@ -7,7 +7,13 @@
 #include <vector>
 
 #include "Vector.h"
+
+// Include the appropriate window header based on the operating system
+#ifdef _WIN32
 #include "Window.h"
+#else
+#include "WindowLinux.h"
+#endif
 
 struct timeval tv;
 unsigned long long get_time_us() {
@@ -34,7 +40,7 @@ int main()
 
     // Create window
     std::cout << "Creating Window\n";
-    Window* pWindow = new Window(width, height, offset_w, offset_h);
+    MyWindow* pWindow = new MyWindow(width, height, offset_w, offset_h);
 
     // Initialize particles (uniform random positions)
     std::vector<Vector2D> positions(n_particles);

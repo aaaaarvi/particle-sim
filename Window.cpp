@@ -17,7 +17,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-Window::Window(int width, int height, int offset_w, int offset_h)
+MyWindow::MyWindow(int width, int height, int offset_w, int offset_h)
     : m_width(width), m_height(height),
       m_offset_w(offset_w), m_offset_h(offset_h),
       m_hInstance(GetModuleHandle(nullptr))
@@ -62,14 +62,14 @@ Window::Window(int width, int height, int offset_w, int offset_h)
     ShowWindow(m_hWnd, SW_SHOW);
 }
 
-Window::~Window()
+MyWindow::~MyWindow()
 {
     const char* CLASS_NAME = "My Window Class";
 
     UnregisterClass(CLASS_NAME, m_hInstance);
 }
 
-bool Window::ProcessMessages()
+bool MyWindow::ProcessMessages()
 {
     MSG msg = {};
 
@@ -87,7 +87,7 @@ bool Window::ProcessMessages()
     return true;
 }
 
-void Window::DrawPixels(std::vector<std::vector<int>> pixels)
+void MyWindow::DrawPixels(std::vector<std::vector<int>> pixels)
 {
     RECT r;
     GetClientRect(m_hWnd, &r);
