@@ -33,22 +33,28 @@ endif
 ifeq ($(OS_NAME),windows)
 	CC = g++
 	LD = g++
+	NVCC = nvcc
 	CFLAGS = -g -Wall -fopenmp -march=native
+	NVCCFLAGS = -g -Xcompiler -Wall,-fopenmp
 	LDFLAGS = -lgdi32 -fopenmp
+	NVCC_LDFLAGS = -Xcompiler -fopenmp -lgdi32
 	# -lpthread
 	RM = del -fR
-	OBJS = Program.o Vector.o Window.o
+	OBJS = Program.o Vector.o Window.o compute_forces.o
 	TARGET = Program.exe
 	WINDOW_SRC = Window.cpp
 	WINDOW_HDR = Window.h
 else
 	CC = g++
 	LD = g++
+	NVCC = nvcc
 	CFLAGS = -g -Wall -fopenmp -march=native
+	NVCCFLAGS = -g -Xcompiler -Wall,-fopenmp
 	LDFLAGS = -lX11 -fopenmp
+	NVCC_LDFLAGS = -Xcompiler -fopenmp -lX11
 	# -lpthread
 	RM = rm -f
-	OBJS = Program.o Vector.o WindowLinux.o
+	OBJS = Program.o Vector.o WindowLinux.o compute_forces.o
 	TARGET = Program
 	WINDOW_SRC = WindowLinux.cpp
 	WINDOW_HDR = WindowLinux.h
@@ -59,7 +65,7 @@ all: $(TARGET)
 	$(RM) *.o
 
 $(TARGET): $(OBJS)
-	$(LD) -o $(TARGET) $(OBJS) $(LDFLAGS)
+	$(NVCC) -o $(TARGET) $(OBJS) $(NVCC_LDFLAGS)
 
 Vector.o: Vector.cpp Vector.h
 	$(CC) $(CFLAGS) -c Vector.cpp
@@ -71,7 +77,10 @@ WindowLinux.o: WindowLinux.cpp WindowLinux.h Vector.h
 	$(CC) $(CFLAGS) -c WindowLinux.cpp
 
 Program.o: Program.cpp Vector.h $(WINDOW_HDR)
-	$(CC) $(CFLAGS) -c Program.cpp
+	$(NVCC) $(NVCCFLAGS) -c Program.cpp
+
+compute_forces.o: compute_forces.cu compute_forces.cuh
+	$(NVCC) $(NVCCFLAGS) -c compute_forces.cu
 
 clean:
 	$(RM) $(TARGET) *.o

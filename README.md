@@ -28,6 +28,7 @@ Before you start:
 2. Install `make`
     - Install Chocolatey from https://chocolatey.org/install
     - Run `choco install make` in an elevated shell
+3. [Install CUDA](https://developer.nvidia.com/cuda-downloads)
 
 ### 1.2 WSL
 

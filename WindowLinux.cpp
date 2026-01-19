@@ -19,7 +19,7 @@ MyWindow::MyWindow(int width, int height, int offset_w, int offset_h)
         m_width, m_height,
         1,
         BlackPixel(m_display, m_screen),
-        WhitePixel(m_display, m_screen)
+        BlackPixel(m_display, m_screen)
     );
 
     // Select input events
@@ -31,6 +31,7 @@ MyWindow::MyWindow(int width, int height, int offset_w, int offset_h)
 
     // Create graphics context
     m_gc = XCreateGC(m_display, m_window, 0, NULL);
+    XSetForeground(m_display, m_gc, WhitePixel(m_display, m_screen));
 
     // Map the window
     XMapWindow(m_display, m_window);
