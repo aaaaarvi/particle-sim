@@ -54,6 +54,7 @@ LDLIBS := #-lm
 NVCC := nvcc
 CUDAFLAGS := -g -Xcompiler -Wall,-fopenmp
 ifeq ($(MODE),gpu)
+	SRC := $(filter-out %_cpu.cpp, $(SRC))
 	LD := $(NVCC)
 	LDFLAGS := -Xcompiler $(LDFLAGS)
 	CXXFLAGS += -DUSE_GPU

@@ -52,7 +52,7 @@ bool MyWindow::ProcessMessages()
         XNextEvent(m_display, &event);
         switch (event.type) {
         case ClientMessage:
-            if (event.xclient.data.l[0] == m_wmDelete) {
+            if (event.xclient.data.l[0] == (long)m_wmDelete) {
                 return false;  // Quit on window close
             }
             break;
