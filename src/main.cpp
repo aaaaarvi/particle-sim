@@ -7,7 +7,13 @@
 #include <vector>
 
 #include "vector.h"
-#include "compute_forces.cuh"
+
+// CPU vs GPU implementation
+#ifdef USE_CUDA
+#include "compute_forces_gpu.cuh"
+#else
+#include "compute_forces_cpu.h"
+#endif
 
 // Include the appropriate window header based on the operating system
 #ifdef _WIN32
@@ -21,33 +27,6 @@ unsigned long long get_time_us() {
     gettimeofday(&tv, NULL);
     return (unsigned long long)(tv.tv_sec) * 1000000 +
            (unsigned long long)(tv.tv_usec);
-}
-
-void compute_forces_cpu(
-    int n_particles,
-    double* positions_x,
-    double* positions_y,
-    double* forces_x,
-    double* forces_y,
-    double extends,
-    double epsilon) {
-
-    #pragma omp parallel for
-    for (int i = 0; i < n_particles; i++) {
-        forces_x[i] = 0;
-        forces_y[i] = 0;
-        for (int j = 0; j < n_particles; j++) {
-            for (double xx = -extends; xx <= extends; xx++) {
-                for (double yy = -extends; yy <= extends; yy++) {
-                    double dx = positions_x[i] - positions_x[j] + xx;
-                    double dy = positions_y[i] - positions_y[j] + yy;
-                    double dist = sqrt(dx*dx + dy*dy) + epsilon;
-                    forces_x[i] += dx / (dist * dist * dist);
-                    forces_y[i] += dy / (dist * dist * dist);
-                }
-            }
-        }
-    }
 }
 
 int main()
@@ -65,7 +44,6 @@ int main()
     const int extends = 0;
     const bool periodic = false;
     const bool timings = true;
-    const bool cuda = true;
 
     double positions_x[n_particles];
     double positions_y[n_particles];
@@ -114,11 +92,7 @@ int main()
         unsigned long long t1 = get_time_us();
 
         // Compute forces
-        if (cuda) {
-            compute_forces_gpu(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
-        } else {
-            compute_forces_cpu(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
-        }
+        compute_forces(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
 
         unsigned long long t2 = get_time_us();
 

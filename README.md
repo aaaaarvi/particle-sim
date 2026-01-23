@@ -1,6 +1,12 @@
 # particle-sim
 
-Simulation of particles affected by gravity in C++/CUDA. Should work on native Windows, WSL in Windows, and native Ubuntu. Requires NVIDIA GPU for the CUDA stuff.
+Simulation of particles affected by gravity in C++/CUDA. Requires NVIDIA GPU for the CUDA stuff. See table below for CPU/GPU support.
+
+| Support          | CPU | GPU |
+| ---------------- | --- | --- |
+| Ubuntu (docker)  | ✅  | ✅  |
+| WSL (docker)     | ✅  | ✅  |
+| Windows (native) | ✅  | ❌  |
 
 ![](images/two_galaxies.png)
 
@@ -131,11 +137,11 @@ sudo apt-get install -y \
 ## Run
 
 Native Windows:
-- Compile: `make`
+- Compile: `make [cpu|gpu]`
 - Run: `.\ParticleSim.exe`
 
 WSL/Ubuntu:
 - Build and start container: `docker compose up`
 - Launch shell: `docker compose exec particles bash`
-- Compile: `make`
+- Compile: `make [cpu|gpu]`
 - Run: `./ParticleSim`

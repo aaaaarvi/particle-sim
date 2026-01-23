@@ -1,6 +1,6 @@
 #pragma once
 
-void compute_forces_gpu(
+void compute_forces(
     int n_particles,
     double* positions_x,
     double* positions_y,

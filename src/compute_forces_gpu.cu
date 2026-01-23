@@ -1,8 +1,8 @@
 #include <cmath>
-#include "compute_forces.cuh"
+#include "compute_forces_gpu.cuh"
 
 __global__
-void compute_forces_gpu_(
+void compute_forces_(
     int n_particles,
     double* positions_x,
     double* positions_y,
@@ -37,7 +37,7 @@ void compute_forces_gpu_(
     }
 }
 
-void compute_forces_gpu(
+void compute_forces(
     int n_particles,
     double* positions_x,
     double* positions_y,
@@ -64,7 +64,7 @@ void compute_forces_gpu(
     cudaMemcpy(d_positions_y, positions_y, n_particles * sizeof(double), cudaMemcpyHostToDevice);
 
     // Launch kernel
-    compute_forces_gpu_<<<num_blocks, num_threads>>>(
+    compute_forces_<<<num_blocks, num_threads>>>(
         n_particles,
         d_positions_x,
         d_positions_y,
