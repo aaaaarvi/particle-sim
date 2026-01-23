@@ -6,16 +6,14 @@
 #include <sys/time.h>
 #include <vector>
 
-#include <cuda_runtime.h>
-
-#include "Vector.h"
+#include "vector.h"
 #include "compute_forces.cuh"
 
 // Include the appropriate window header based on the operating system
 #ifdef _WIN32
-#include "Window.h"
+#include "window_win.h"
 #else
-#include "WindowLinux.h"
+#include "window_linux.h"
 #endif
 
 struct timeval tv;
@@ -52,36 +50,6 @@ void compute_forces_cpu(
     }
 }
 
-void compute_forces(
-    int n_particles,
-    double* h_positions_x,
-    double* h_positions_y,
-    double* h_forces_x,
-    double* h_forces_y,
-    double* d_positions_x,
-    double* d_positions_y,
-    double* d_forces_x,
-    double* d_forces_y,
-    double extends,
-    double epsilon,
-    bool cuda) {
-
-    if (cuda) {
-        // Copy positions to device
-        cudaMemcpy(d_positions_x, h_positions_x, n_particles * sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_positions_y, h_positions_y, n_particles * sizeof(double), cudaMemcpyHostToDevice);
-
-        // Launch kernel
-        compute_forces_gpu(n_particles, d_positions_x, d_positions_y, d_forces_x, d_forces_y, extends, epsilon);
-
-        // Copy forces back to host
-        cudaMemcpy(h_forces_x, d_forces_x, n_particles * sizeof(double), cudaMemcpyDeviceToHost);
-        cudaMemcpy(h_forces_y, d_forces_y, n_particles * sizeof(double), cudaMemcpyDeviceToHost);
-    } else {
-        compute_forces_cpu(n_particles, h_positions_x, h_positions_y, h_forces_x, h_forces_y, extends, epsilon);
-    }
-}
-
 int main()
 {
     srand(static_cast<unsigned>(time(0)));
@@ -99,52 +67,12 @@ int main()
     const bool timings = true;
     const bool cuda = true;
 
-    double *h_positions_x, *h_positions_y;
-    double *h_velocities_x, *h_velocities_y;
-    double *h_forces_x, *h_forces_y;
-    double *d_positions_x, *d_positions_y;
-    double *d_forces_x, *d_forces_y;
-
-    std::cout << "Allocating memory\n";
-
-    if (cuda) {
-        // Allocate host memory
-        h_positions_x = new double[n_particles];
-        h_positions_y = new double[n_particles];
-        h_velocities_x = new double[n_particles];
-        h_velocities_y = new double[n_particles];
-        h_forces_x = new double[n_particles];
-        h_forces_y = new double[n_particles];
-
-        // Allocate device memory
-        cudaMalloc((void**)&d_positions_x, n_particles * sizeof(double));
-        cudaMalloc((void**)&d_positions_y, n_particles * sizeof(double));
-        cudaMalloc((void**)&d_forces_x, n_particles * sizeof(double));
-        cudaMalloc((void**)&d_forces_y, n_particles * sizeof(double));
-    } else {
-        // Allocate host memory directly
-        h_positions_x = new double[n_particles];
-        h_positions_y = new double[n_particles];
-        h_velocities_x = new double[n_particles];
-        h_velocities_y = new double[n_particles];
-        h_forces_x = new double[n_particles];
-        h_forces_y = new double[n_particles];
-
-        d_positions_x = h_positions_x;
-        d_positions_y = h_positions_y;
-        d_forces_x = h_forces_x;
-        d_forces_y = h_forces_y;
-    }
-
-    // Alias for simplicity
-    double *positions_x = h_positions_x;
-    double *positions_y = h_positions_y;
-    double *velocities_x = h_velocities_x;
-    double *velocities_y = h_velocities_y;
-    double *forces_x = h_forces_x;
-    double *forces_y = h_forces_y;
-
-    std::cout << "Initializing particles\n";
+    double positions_x[n_particles];
+    double positions_y[n_particles];
+    double velocities_x[n_particles];
+    double velocities_y[n_particles];
+    double forces_x[n_particles];
+    double forces_y[n_particles];
 
     // Initialize "two galaxies"
     std::default_random_engine generator;
@@ -166,16 +94,12 @@ int main()
         forces_y[i] = 0.0;
     }
 
-    std::cout << "Setting up pixels\n";
-
     // Initialize pixels
     std::vector<std::vector<int>> pixels(n_particles, std::vector<int>(2));
 
     // Create window
     std::cout << "Creating Window\n";
     MyWindow* pWindow = new MyWindow(width, height, offset_w, offset_h);
-
-    std::cout << "Starting simulation\n";
 
     bool running = true;
     while (running) {
@@ -190,7 +114,11 @@ int main()
         unsigned long long t1 = get_time_us();
 
         // Compute forces
-        compute_forces(n_particles, positions_x, positions_y, forces_x, forces_y, d_positions_x, d_positions_y, d_forces_x, d_forces_y, extends, epsilon, cuda);
+        if (cuda) {
+            compute_forces_gpu(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
+        } else {
+            compute_forces_cpu(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
+        }
 
         unsigned long long t2 = get_time_us();
 
@@ -241,20 +169,6 @@ int main()
     }
 
     delete pWindow;
-
-    if (cuda) {
-        cudaFree(d_positions_x);
-        cudaFree(d_positions_y);
-        cudaFree(d_forces_x);
-        cudaFree(d_forces_y);
-    }
-
-    delete[] h_positions_x;
-    delete[] h_positions_y;
-    delete[] h_velocities_x;
-    delete[] h_velocities_y;
-    delete[] h_forces_x;
-    delete[] h_forces_y;
 
     return 0;
 }

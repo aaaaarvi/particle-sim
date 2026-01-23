@@ -131,11 +131,11 @@ sudo apt-get install -y \
 ## Run
 
 Native Windows:
-- Compile: `make all`
-- Run: `.\Program.exe`
+- Compile: `make`
+- Run: `.\ParticleSim.exe`
 
 WSL/Ubuntu:
 - Build and start container: `docker compose up`
 - Launch shell: `docker compose exec particles bash`
-- Compile: `make all`
-- Run: `./Program`
+- Compile: `make`
+- Run: `./ParticleSim`

@@ -48,12 +48,32 @@ void compute_forces_gpu(
 
     int num_threads = 256; // Number of threads per block
     int num_blocks = (n_particles + num_threads - 1) / num_threads; // Number of blocks needed
+
+    // Initialize device pointers
+    double *d_positions_x, *d_positions_y;
+    double *d_forces_x, *d_forces_y;
+
+    // Allocate device memory
+    cudaMalloc((void**)&d_positions_x, n_particles * sizeof(double));
+    cudaMalloc((void**)&d_positions_y, n_particles * sizeof(double));
+    cudaMalloc((void**)&d_forces_x, n_particles * sizeof(double));
+    cudaMalloc((void**)&d_forces_y, n_particles * sizeof(double));
+
+    // Copy positions to device
+    cudaMemcpy(d_positions_x, positions_x, n_particles * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_positions_y, positions_y, n_particles * sizeof(double), cudaMemcpyHostToDevice);
+
+    // Launch kernel
     compute_forces_gpu_<<<num_blocks, num_threads>>>(
         n_particles,
-        positions_x,
-        positions_y,
-        forces_x,
-        forces_y,
+        d_positions_x,
+        d_positions_y,
+        d_forces_x,
+        d_forces_y,
         extends,
         epsilon);
+
+    // Copy forces back to host
+    cudaMemcpy(forces_x, d_forces_x, n_particles * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(forces_y, d_forces_y, n_particles * sizeof(double), cudaMemcpyDeviceToHost);
 }

@@ -1,4 +1,4 @@
-#include "WindowLinux.h"
+#include "window_linux.h"
 #include <iostream>
 
 MyWindow::MyWindow(int width, int height, int offset_w, int offset_h)
