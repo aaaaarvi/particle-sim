@@ -33,10 +33,17 @@ int main()
 {
     srand(static_cast<unsigned>(time(0)));
 
-    const int n_particles = 10000;
-    const double g_const = 0.001 / (double)n_particles;
-    const double epsilon = 0.01;
-    const double delta_t = 0.01;
+    // TODO: Move constants to config file
+    // TODO: Investigate cuda memory transfer overhead
+    // TODO: Implement more efficient algorithms (Barnes-Hut, etc.)
+    // TODO: Implement true periodic boundary conditions
+    // TODO: Preserve conserved quantities (momentum, energy)
+    // TODO: Add physical particle interactions (collisions, mergers, slowdown)
+
+    const int n_particles = 10000; // 1000
+    const double g_const = 0.1 / (double)n_particles; // 100
+    const double epsilon = 0.01; // 1e-3
+    const double delta_t = 0.01; // 1e-5
     const int width = 720;
     const int height = 720;
     const int offset_w = 100;
@@ -59,18 +66,23 @@ int main()
         positions_x[i] = 0.25 + 0.01*distribution(generator);
         positions_y[i] = 0.5 + 0.01*distribution(generator);
         velocities_x[i] = 0.0;
-        velocities_y[i] = 0.1;
-        forces_x[i] = 0.0;
-        forces_y[i] = 0.0;
+        velocities_y[i] = 0.1; // 5.0
     }
     for (int i = n_particles / 2; i < n_particles; i++) {
         positions_x[i] = 0.75 + 0.01*distribution(generator);
         positions_y[i] = 0.5 + 0.01*distribution(generator);
         velocities_x[i] = 0.0;
-        velocities_y[i] = -0.1;
-        forces_x[i] = 0.0;
-        forces_y[i] = 0.0;
+        velocities_y[i] = -0.1; // -5.0
     }
+
+    // Initialize uniform distribution
+    //std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+    //for (int i = 0; i < n_particles; i++) {
+    //    positions_x[i] = uniform_dist(generator);
+    //    positions_y[i] = uniform_dist(generator);
+    //    velocities_x[i] = 0.0;
+    //    velocities_y[i] = 0.0;
+    //}
 
     // Initialize pixels
     std::vector<std::vector<int>> pixels(n_particles, std::vector<int>(2));
@@ -99,8 +111,8 @@ int main()
         // Apply forces
         #pragma omp parallel for
         for (int i = 0; i < n_particles; i++) {
-            velocities_x[i] -= g_const * forces_x[i];
-            velocities_y[i] -= g_const * forces_y[i];
+            velocities_x[i] -= delta_t * g_const * forces_x[i];
+            velocities_y[i] -= delta_t * g_const * forces_y[i];
         }
 
         unsigned long long t3 = get_time_us();

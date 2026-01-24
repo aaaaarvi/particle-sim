@@ -22,11 +22,13 @@ void compute_forces_(
         double fx = 0.0;
         double fy = 0.0;
         for (int j = 0; j < n_particles; j++) {
+            if (i == j) continue;
             for (double xx = -extends; xx <= extends; xx++) {
                 for (double yy = -extends; yy <= extends; yy++) {
                     double dx = positions_x[i] - positions_x[j] + xx;
                     double dy = positions_y[i] - positions_y[j] + yy;
                     double dist = sqrt(dx*dx + dy*dy) + epsilon;
+                    //dist = dist < epsilon ? epsilon : dist;
                     fx += dx / (dist * dist * dist);
                     fy += dy / (dist * dist * dist);
                 }
@@ -76,4 +78,10 @@ void compute_forces(
     // Copy forces back to host
     cudaMemcpy(forces_x, d_forces_x, n_particles * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(forces_y, d_forces_y, n_particles * sizeof(double), cudaMemcpyDeviceToHost);
+
+    // Free device memory
+    cudaFree(d_positions_x);
+    cudaFree(d_positions_y);
+    cudaFree(d_forces_x);
+    cudaFree(d_forces_y);
 }
