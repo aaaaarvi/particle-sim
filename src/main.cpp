@@ -36,7 +36,6 @@ int main()
 
     // TODO: Move constants to config file
     // TODO: Investigate cuda memory transfer overhead
-    // TODO: Implement more efficient algorithms (Barnes-Hut, etc.)
     // TODO: Implement true periodic boundary conditions
     // TODO: Preserve conserved quantities (momentum, energy)
     // TODO: Add physical particle interactions (collisions, mergers, slowdown)
