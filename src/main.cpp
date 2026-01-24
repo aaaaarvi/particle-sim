@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "vector.h"
+#include "quad_tree.h"
 
 // CPU vs GPU implementation
 #ifdef USE_CUDA
@@ -86,6 +87,17 @@ int main()
 
     // Initialize pixels
     std::vector<std::vector<int>> pixels(n_particles, std::vector<int>(2));
+
+    // Quadtree
+    /*
+    quad_tree::node_t* root;
+    quad_tree::init(&root);
+    for (int i = 0; i < n_particles; i++) {
+        quad_tree::insert(root, positions_x[i], positions_y[i], 1.0);
+    }
+    quad_tree::print_tree(root);
+    quad_tree::free_tree(root);
+    //*/
 
     // Create window
     std::cout << "Creating Window\n";
