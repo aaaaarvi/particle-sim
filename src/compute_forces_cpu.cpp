@@ -1,5 +1,6 @@
 #include <cmath>
 #include "compute_forces_cpu.h"
+#include "quad_tree.h"
 
 void compute_forces(
     int n_particles,
@@ -10,6 +11,8 @@ void compute_forces(
     double extends,
     double epsilon) {
 
+    // Direct force computation, O(N^2)
+    /** /
     #pragma omp parallel for
     for (int i = 0; i < n_particles; i++) {
         forces_x[i] = 0;
@@ -28,4 +31,30 @@ void compute_forces(
             }
         }
     }
+    //*/
+
+    // Barnes-Hut algorithm, O(N log N)
+    /**/
+    double theta_max = 0.5;
+
+    // Initialize quadtree
+    quad_tree::node_t* root;
+    quad_tree::init(&root);
+    for (int i = 0; i < n_particles; i++) {
+        quad_tree::insert(root, positions_x[i], positions_y[i], 1.0, i);
+    }
+
+    // Compute forces
+    #pragma omp parallel for
+    for (int i = 0; i < n_particles; i++) {
+        forces_x[i] = 0;
+        forces_y[i] = 0;
+        quad_tree::compute_force(root, &forces_x[i], &forces_y[i], i,
+                                 positions_x[i], positions_y[i], 1.0,
+                                 theta_max, epsilon);
+    }
+
+    // Free quadtree
+    quad_tree::free_tree(root);
+    //*/
 }

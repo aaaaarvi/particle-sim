@@ -40,6 +40,8 @@ int main()
     // TODO: Implement true periodic boundary conditions
     // TODO: Preserve conserved quantities (momentum, energy)
     // TODO: Add physical particle interactions (collisions, mergers, slowdown)
+    // TODO: Unit tests
+    // TODO: Zooming and panning in the window
 
     const int n_particles = 10000; // 1000
     const double g_const = 0.1 / (double)n_particles; // 100
@@ -77,23 +79,25 @@ int main()
     }
 
     // Initialize uniform distribution
-    //std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
-    //for (int i = 0; i < n_particles; i++) {
-    //    positions_x[i] = uniform_dist(generator);
-    //    positions_y[i] = uniform_dist(generator);
-    //    velocities_x[i] = 0.0;
-    //    velocities_y[i] = 0.0;
-    //}
+    /** /
+    std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+    for (int i = 0; i < n_particles; i++) {
+        positions_x[i] = uniform_dist(generator);
+        positions_y[i] = uniform_dist(generator);
+        velocities_x[i] = 0.0;
+        velocities_y[i] = 0.0;
+    }
+    //*/
 
     // Initialize pixels
     std::vector<std::vector<int>> pixels(n_particles, std::vector<int>(2));
 
-    // Quadtree
-    /*
+    // Print initial quadtree
+    /** /
     quad_tree::node_t* root;
     quad_tree::init(&root);
     for (int i = 0; i < n_particles; i++) {
-        quad_tree::insert(root, positions_x[i], positions_y[i], 1.0);
+        quad_tree::insert(root, positions_x[i], positions_y[i], 1.0, i);
     }
     quad_tree::print_tree(root);
     quad_tree::free_tree(root);
