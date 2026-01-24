@@ -41,6 +41,7 @@ int main()
     // TODO: Add physical particle interactions (collisions, mergers, slowdown)
     // TODO: Unit tests
     // TODO: Zooming and panning in the window
+    // TODO: Optimize quadtree memory allocations
 
     const int n_particles = 10000; // 1000
     const double g_const = 0.1 / (double)n_particles; // 100
@@ -93,13 +94,16 @@ int main()
 
     // Print initial quadtree
     /** /
+    unsigned long long time0 = get_time_us();
     quad_tree::node_t* root;
     quad_tree::init(&root);
     for (int i = 0; i < n_particles; i++) {
         quad_tree::insert(root, positions_x[i], positions_y[i], 1.0, i);
     }
-    quad_tree::print_tree(root);
+    //quad_tree::print_tree(root);
     quad_tree::free_tree(root);
+    unsigned long long time1 = get_time_us();
+    std::cout << "Quadtree time: " << (time1 - time0) / 1000 << " ms\n";
     //*/
 
     // Create window
