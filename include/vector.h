@@ -6,7 +6,7 @@ public:
     T x;
     T y;
     Vector2<T>(T X = 0, T Y = 0) : x(X), y(Y) {}
-    ~Vector2() {}
+    ~Vector2<T>() {}
     Vector2<T> operator+(const Vector2<T>& other) const {
         return Vector2<T>(x + other.x, y + other.y);
     }
