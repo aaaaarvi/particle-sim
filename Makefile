@@ -99,7 +99,7 @@ $(OBJ_DIR):
 	$(MKDIR) $@
 
 clean:
-	@$(RM) $(OBJ_DIR)
+	@$(RM) $(OBJ_DIR) $(EXE)
 
 help:
 	@echo "Makefile for ParticleSim"
