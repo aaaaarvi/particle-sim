@@ -25,8 +25,8 @@ void compute_forces_(
             if (i == j) continue;
             for (double xx = -extends; xx <= extends; xx++) {
                 for (double yy = -extends; yy <= extends; yy++) {
-                    double dx = positions_x[i] - positions_x[j] + xx;
-                    double dy = positions_y[i] - positions_y[j] + yy;
+                    double dx = positions_x[j] - positions_x[i] + xx;
+                    double dy = positions_y[j] - positions_y[i] + yy;
                     double dist = sqrt(dx*dx + dy*dy) + epsilon;
                     //dist = dist < epsilon ? epsilon : dist;
                     fx += dx / (dist * dist * dist);

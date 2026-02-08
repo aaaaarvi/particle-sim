@@ -33,7 +33,7 @@ void compute_forces(
     }
     //*/
 
-    // Barnes-Hut algorithm, O(N log N)
+    // Barnes-Hut algorithm v1, O(N log N)
     /**/
     double theta_max = 0.5;
 
@@ -56,5 +56,35 @@ void compute_forces(
 
     // Free quadtree
     quad_tree::free_tree(root);
+    //*/
+
+    // Barnes-Hut algorithm v2, O(N log N)
+    /** /
+    double theta_max = 0.5;
+
+    std::vector<Particle<float>> particles;
+    for (int i = 0; i < n_particles; i++) {
+        particles.push_back(Particle<float>(
+            Vector2<float>((float)positions_x[i], (float)positions_y[i]),
+            Vector2<float>(0.0f, 0.0f)));
+    }
+
+    quad_tree::Quad quad = quad_tree::Quad(particles);
+
+    quad_tree::Quadtree quadtree = quad_tree::Quadtree(theta_max, epsilon);
+    quadtree.clear(quad);
+
+    for (const auto& particle : particles) {
+        quadtree.insert(particle.pos, particle.mass);
+    }
+
+    quadtree.propagate();
+
+    #pragma omp parallel for
+    for (int i = 0; i < n_particles; i++) {
+        Vector2<float> acc = quadtree.acc(particles[i].pos) * particles[i].mass;
+        forces_x[i] = acc.x;
+        forces_y[i] = acc.y;
+    }
     //*/
 }
