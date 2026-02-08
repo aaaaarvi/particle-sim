@@ -6,7 +6,6 @@
 #include <sys/time.h>
 #include <vector>
 
-#include "vector.h"
 #include "quad_tree.h"
 
 // CPU vs GPU implementation
@@ -23,11 +22,11 @@
 #include "window_linux.h"
 #endif
 
-struct timeval tv;
-unsigned long long get_time_us() {
-    gettimeofday(&tv, NULL);
-    return (unsigned long long)(tv.tv_sec) * 1000000 +
-           (unsigned long long)(tv.tv_usec);
+long double get_time() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long double)(ts.tv_sec) +
+           (long double)(ts.tv_nsec) / (long double)1000000000.0L;
 }
 
 int main()
@@ -43,7 +42,8 @@ int main()
     // TODO: Zooming and panning in the window
     // TODO: Optimize quadtree memory allocations
 
-    const int n_particles = 10000; // 1000
+    // Parameters
+    const int n_particles = 100000; // 1000
     const double g_const = 0.1 / (double)n_particles; // 100
     const double epsilon = 0.01; // 1e-3
     const double delta_t = 0.01; // 1e-5
@@ -53,7 +53,15 @@ int main()
     const int offset_h = 100;
     const int extends = 0;
     const bool periodic = false;
-    const bool timings = true;
+    const bool verbose = false;
+
+    // Timing statistics
+    long double delta_t_tot_1 = 0.0;
+    long double delta_t_tot_2 = 0.0;
+    long double delta_t_tot_3 = 0.0;
+    long double delta_t_tot_4 = 0.0;
+    long double delta_t_tot_5 = 0.0;
+    int num_deltas = 0;
 
     double positions_x[n_particles];
     double positions_y[n_particles];
@@ -113,28 +121,28 @@ int main()
     bool running = true;
     while (running) {
 
-        unsigned long long t0 = get_time_us();
+        long double t0 = get_time();
 
         if (!pWindow->ProcessMessages()) {
             std::cout << "Closing Window\n";
             running = false;
         }
 
-        unsigned long long t1 = get_time_us();
+        long double t1 = get_time();
 
         // Compute forces
         compute_forces(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
 
-        unsigned long long t2 = get_time_us();
+        long double t2 = get_time();
 
         // Apply forces
         #pragma omp parallel for
         for (int i = 0; i < n_particles; i++) {
-            velocities_x[i] -= delta_t * g_const * forces_x[i];
-            velocities_y[i] -= delta_t * g_const * forces_y[i];
+            velocities_x[i] += delta_t * g_const * forces_x[i];
+            velocities_y[i] += delta_t * g_const * forces_y[i];
         }
 
-        unsigned long long t3 = get_time_us();
+        long double t3 = get_time();
 
         // Update positions
         #pragma omp parallel for
@@ -155,23 +163,46 @@ int main()
             pixels[i][1] = (int)(positions_y[i] * height);
         }
 
-        unsigned long long t4 = get_time_us();
+        long double t4 = get_time();
 
         // Render
         pWindow->DrawPixels(pixels);
         //Sleep(1000);
 
-        unsigned long long t5 = get_time_us();
+        long double t5 = get_time();
 
-        if (timings) {
-            std::cout << (t1 - t0)/1000 << " "
-                    << (t2 - t1)/1000 << " "
-                    << (t3 - t2)/1000 << " "
-                    << (t4 - t3)/1000 << " "
-                    << (t5 - t4)/1000 << std::endl;
-
+        // Timings
+        long double diff1 = (t1 - t0);
+        long double diff2 = (t2 - t1);
+        long double diff3 = (t3 - t2);
+        long double diff4 = (t4 - t3);
+        long double diff5 = (t5 - t4);
+        delta_t_tot_1 = (diff1 + num_deltas * delta_t_tot_1) / (num_deltas + 1);
+        delta_t_tot_2 = (diff2 + num_deltas * delta_t_tot_2) / (num_deltas + 1);
+        delta_t_tot_3 = (diff3 + num_deltas * delta_t_tot_3) / (num_deltas + 1);
+        delta_t_tot_4 = (diff4 + num_deltas * delta_t_tot_4) / (num_deltas + 1);
+        delta_t_tot_5 = (diff5 + num_deltas * delta_t_tot_5) / (num_deltas + 1);
+        num_deltas++;
+        if (verbose) {
+            std::cout << (int)(diff1 * 1000) << " "
+                      << (int)(diff2 * 1000) << " "
+                      << (int)(diff3 * 1000) << " "
+                      << (int)(diff4 * 1000) << " "
+                      << (int)(diff5 * 1000) << "    "
+                      << (int)(delta_t_tot_1 * 1000) << " "
+                      << (int)(delta_t_tot_2 * 1000) << " "
+                      << (int)(delta_t_tot_3 * 1000) << " "
+                      << (int)(delta_t_tot_4 * 1000) << " "
+                      << (int)(delta_t_tot_5 * 1000) << " " << std::endl;
         }
     }
+
+    std::cout << "Timing statistics" << std::endl;
+    std::cout << "  Window messages:  " << (int)(delta_t_tot_1 * 1000) << " ms" << std::endl;
+    std::cout << "  Compute forces:   " << (int)(delta_t_tot_2 * 1000) << " ms" << std::endl;
+    std::cout << "  Apply forces:     " << (int)(delta_t_tot_3 * 1000) << " ms" << std::endl;
+    std::cout << "  Update positions: " << (int)(delta_t_tot_4 * 1000) << " ms" << std::endl;
+    std::cout << "  Render:           " << (int)(delta_t_tot_5 * 1000) << " ms" << std::endl;
 
     delete pWindow;
 
