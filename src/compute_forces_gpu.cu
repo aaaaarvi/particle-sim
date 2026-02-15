@@ -1,6 +1,7 @@
 #include <cmath>
 #include "compute_forces_gpu.cuh"
 #include "quad_tree.h"
+#include "quad_tree_flat.h"
 
 __global__
 void compute_forces_direct_(
@@ -71,6 +72,15 @@ void allocate_quadtree_on_device(const quad_tree::node_t* node, quad_tree::node_
     cudaMemcpy(*d_node, &h_node, sizeof(quad_tree::node_t), cudaMemcpyHostToDevice);
 }
 
+// Allocate flattened quadtree on device and return device pointer
+quad_tree_flat::node_t* allocate_flattened_quadtree_on_device(const quad_tree_flat::tree_t* h_tree) {
+    int tree_size = (int)h_tree->nodes.size();
+    quad_tree_flat::node_t* d_nodes = nullptr;
+    cudaMalloc((void**)&d_nodes, tree_size * sizeof(quad_tree_flat::node_t));
+    cudaMemcpy(d_nodes, h_tree->nodes.data(), tree_size * sizeof(quad_tree_flat::node_t), cudaMemcpyHostToDevice);
+    return d_nodes;
+}
+
 // Free device memory for quadtree recursively
 void free_quadtree_on_device(quad_tree::node_t* d_node) {
     if (d_node == nullptr) return;
@@ -87,6 +97,13 @@ void free_quadtree_on_device(quad_tree::node_t* d_node) {
 
     // Free memory for the current node
     cudaFree(d_node);
+}
+
+// Free flattened quadtree on device
+void free_flattened_quadtree_on_device(quad_tree_flat::node_t* d_nodes) {
+    if (d_nodes != nullptr) {
+        cudaFree(d_nodes);
+    }
 }
 
 // Re-implementation of quad_tree::compute_force for device code
@@ -124,8 +141,54 @@ void compute_force_quadtree_(
     }
 }
 
+// Iterative traversal of flattened quadtree on device (index-based)
+__device__
+void compute_force_quadtree_flat_(
+    quad_tree_flat::node_t* nodes,
+    float* force_x,
+    float* force_y,
+    float x,
+    float y,
+    float mass,
+    float theta_max,
+    float epsilon) {
+
+    if (nodes == nullptr) return;
+
+    // Use a stack to traverse the tree iteratively (avoids recursion overhead)
+    int stack[64];  // enough depth for typical quadtrees
+    int stack_ptr = 0;
+    stack[stack_ptr++] = 0;  // start at root
+
+    while (stack_ptr > 0) {
+        int idx = stack[--stack_ptr];
+        quad_tree_flat::node_t* node = &nodes[idx];
+
+        if (node->num_particles == 0) continue;
+
+        float dx = node->center_of_mass_x - x;
+        float dy = node->center_of_mass_y - y;
+        float dist = sqrtf(dx * dx + dy * dy) + epsilon;
+        float theta = node->width / dist;
+
+        // Check if we can approximate
+        if (theta < theta_max || node->num_particles == 1) {
+            // Compute force contribution
+            float force_magnitude = (mass * node->mass) / (dist * dist);
+            *force_x += force_magnitude * (dx / dist);
+            *force_y += force_magnitude * (dy / dist);
+        } else {
+            // Push children onto stack (in reverse order for depth-first traversal)
+            if (node->se >= 0) stack[stack_ptr++] = node->se;
+            if (node->sw >= 0) stack[stack_ptr++] = node->sw;
+            if (node->ne >= 0) stack[stack_ptr++] = node->ne;
+            if (node->nw >= 0) stack[stack_ptr++] = node->nw;
+        }
+    }
+}
+
 __global__
-void compute_forces_barnes_hut_(
+void compute_forces_barnes_hut_v1_(
     int n_particles,
     float* positions_x,
     float* positions_y,
@@ -147,6 +210,34 @@ void compute_forces_barnes_hut_(
         float fy = 0.0f;
         compute_force_quadtree_(
             root, &fx, &fy, positions_x[i], positions_y[i], 1.0f, 0.5f, epsilon);
+        forces_x[i] = fx;
+        forces_y[i] = fy;
+    }
+}
+
+__global__
+void compute_forces_barnes_hut_v2_(
+    int n_particles,
+    float* positions_x,
+    float* positions_y,
+    float* forces_x,
+    float* forces_y,
+    float epsilon,
+    int extends,
+    quad_tree_flat::node_t* nodes) {
+    /*
+    threadIdx.x: The index of the thread within its block.
+    blockIdx.x: The index of the block within the grid.
+    blockDim.x: The total number of threads in the block.
+    gridDim.x: The total number of blocks in the grid.
+    */
+    int index = blockIdx.x * blockDim.x + threadIdx.x; // global thread index
+    int stride = blockDim.x * gridDim.x; // total number of threads in the grid
+    for (int i = index; i < n_particles; i += stride) {
+        float fx = 0.0f;
+        float fy = 0.0f;
+        compute_force_quadtree_flat_(
+            nodes, &fx, &fy, positions_x[i], positions_y[i], 1.0f, 0.5f, epsilon);
         forces_x[i] = fx;
         forces_y[i] = fy;
     }
@@ -186,7 +277,7 @@ void compute_forces(
 
     // Direct force computation, O(N^2)
     // (Assumes all particles have mass 1.)
-    /**/
+    /** /
 
     // Compute forces
     compute_forces_direct_<<<num_blocks, num_threads>>>(
@@ -234,7 +325,7 @@ void compute_forces(
     allocate_quadtree_on_device(h_root, &d_root);
 
     // Compute forces
-    compute_forces_barnes_hut_<<<num_blocks, num_threads>>>(
+    compute_forces_barnes_hut_v1_<<<num_blocks, num_threads>>>(
         n_particles,
         d_positions_x,
         d_positions_y,
@@ -246,6 +337,54 @@ void compute_forces(
 
     // Free device memory for quadtree
     free_quadtree_on_device(d_root);
+    //*/
+
+    // Barnes-Hut algorithm with flattened quadtree, O(N log N)
+    /**/
+    float theta_max = 0.5f;
+
+    // Compute min/max x/y coordinates
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_y = std::numeric_limits<float>::max();
+    float max_y = std::numeric_limits<float>::lowest();
+    for (const auto& p : *particles) {
+        if (p.pos.x - (float)extends < min_x) min_x = p.pos.x - (float)extends;
+        if (p.pos.x + (float)extends > max_x) max_x = p.pos.x + (float)extends;
+        if (p.pos.y - (float)extends < min_y) min_y = p.pos.y - (float)extends;
+        if (p.pos.y + (float)extends > max_y) max_y = p.pos.y + (float)extends;
+    }
+    float origo_x = (min_x + max_x) * 0.5f;
+    float origo_y = (min_y + max_y) * 0.5f;
+    float width = std::max(max_x - min_x, max_y - min_y);
+
+    // Initialize flattened quadtree on host
+    quad_tree_flat::tree_t h_tree;
+    quad_tree_flat::init(&h_tree, origo_x, origo_y, width);
+    for (const auto& p : *particles) {
+        for (int xx = -extends; xx <= extends; xx++) {
+            for (int yy = -extends; yy <= extends; yy++) {
+                quad_tree_flat::insert(&h_tree, p.pos.x + (float)xx, p.pos.y + (float)yy, p.mass);
+            }
+        }
+    }
+
+    // Allocate device memory for flattened quadtree (single bulk allocation)
+    quad_tree_flat::node_t* d_nodes = allocate_flattened_quadtree_on_device(&h_tree);
+
+    // Compute forces
+    compute_forces_barnes_hut_v2_<<<num_blocks, num_threads>>>(
+        n_particles,
+        d_positions_x,
+        d_positions_y,
+        d_forces_x,
+        d_forces_y,
+        epsilon,
+        extends,
+        d_nodes);
+
+    // Free device memory for flattened quadtree
+    free_flattened_quadtree_on_device(d_nodes);
     //*/
 
     // Copy forces back to host
