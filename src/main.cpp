@@ -41,12 +41,14 @@ int main()
     // TODO: Unit tests
     // TODO: Zooming and panning in the window
     // TODO: Optimize quadtree memory allocations
+    // TODO: Change DrawPixels to DrawParticles, which accepts a vector of particles
+    // TODO: Draw in grayscale/colormap -> higher particle density gives higher brightness
 
     // Parameters
     const int n_particles = 100000; // 1000
-    const double g_const = 0.1 / (double)n_particles; // 100
-    const double epsilon = 0.01; // 1e-3
-    const double delta_t = 0.01; // 1e-5
+    const float g_const = 0.1f / n_particles; // 100
+    const float epsilon = 0.01f; // 1e-3
+    const float delta_t = 0.01f; // 1e-5
     const int width = 720;
     const int height = 720;
     const int offset_w = 100;
@@ -63,37 +65,36 @@ int main()
     long double delta_t_tot_5 = 0.0;
     int num_deltas = 0;
 
-    double positions_x[n_particles];
-    double positions_y[n_particles];
-    double velocities_x[n_particles];
-    double velocities_y[n_particles];
-    double forces_x[n_particles];
-    double forces_y[n_particles];
-
     // Initialize "two galaxies"
+    /**/
     std::default_random_engine generator;
-    std::normal_distribution<double> distribution(0.0, 1.0);
+    std::normal_distribution<float> distribution(0.0f, 1.0f);
+    std::vector<Particle<float>> particles;
     for (int i = 0; i < n_particles / 2; i++) {
-        positions_x[i] = 0.25 + 0.01*distribution(generator);
-        positions_y[i] = 0.5 + 0.01*distribution(generator);
-        velocities_x[i] = 0.0;
-        velocities_y[i] = 0.1; // 5.0
+        particles.push_back(Particle<float>(
+            Vector2<float>(
+                0.25f + 0.01f * distribution(generator),
+                0.5f + 0.01f * distribution(generator)),
+            Vector2<float>(0.0f, 0.1f)));
     }
     for (int i = n_particles / 2; i < n_particles; i++) {
-        positions_x[i] = 0.75 + 0.01*distribution(generator);
-        positions_y[i] = 0.5 + 0.01*distribution(generator);
-        velocities_x[i] = 0.0;
-        velocities_y[i] = -0.1; // -5.0
+        particles.push_back(Particle<float>(
+            Vector2<float>(
+                0.75f + 0.01f * distribution(generator),
+                0.5f + 0.01f * distribution(generator)),
+            Vector2<float>(0.0f, -0.1f)));
     }
+    //*/
 
     // Initialize uniform distribution
     /** /
-    std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+    std::default_random_engine generator;
+    std::uniform_real_distribution<float> uniform_dist(0.0f, 1.0f);
+    std::vector<Particle<float>> particles;
     for (int i = 0; i < n_particles; i++) {
-        positions_x[i] = uniform_dist(generator);
-        positions_y[i] = uniform_dist(generator);
-        velocities_x[i] = 0.0;
-        velocities_y[i] = 0.0;
+        particles.push_back(Particle<float>(
+            Vector2<float>(uniform_dist(generator), uniform_dist(generator)),
+            Vector2<float>(0.0f, 0.0f)));
     }
     //*/
 
@@ -131,36 +132,34 @@ int main()
         long double t1 = get_time();
 
         // Compute forces
-        compute_forces(n_particles, positions_x, positions_y, forces_x, forces_y, extends, epsilon);
+        compute_forces(&particles, epsilon, extends);
 
         long double t2 = get_time();
 
         // Apply forces
         #pragma omp parallel for
-        for (int i = 0; i < n_particles; i++) {
-            velocities_x[i] += delta_t * g_const * forces_x[i];
-            velocities_y[i] += delta_t * g_const * forces_y[i];
+        for (auto& p : particles) {
+            p.vel += p.acc * g_const * delta_t;
         }
 
         long double t3 = get_time();
 
         // Update positions
         #pragma omp parallel for
-        for (int i = 0; i < n_particles; i++) {
-            positions_x[i] = positions_x[i] + delta_t * velocities_x[i];
-            positions_y[i] = positions_y[i] + delta_t * velocities_y[i];
+        for (auto& p : particles) {
+            p.pos += p.vel * delta_t;
             if (periodic) {
-                positions_x[i] = std::fmod(positions_x[i], 1.0);
-                positions_y[i] = std::fmod(positions_y[i], 1.0);
-                if (positions_x[i] < 0) {
-                    positions_x[i] += 1 - (double)(int)positions_x[i];
-                }
-                if (positions_y[i] < 0) {
-                    positions_y[i] += 1 - (double)(int)positions_y[i];
-                }
+                p.pos.x = std::fmod(p.pos.x, 1.0f);
+                p.pos.y = std::fmod(p.pos.y, 1.0f);
+                if (p.pos.x < 0) p.pos.x += 1 - (float)(int)p.pos.x;
+                if (p.pos.y < 0) p.pos.y += 1 - (float)(int)p.pos.y;
             }
-            pixels[i][0] = (int)(positions_x[i] * width);
-            pixels[i][1] = (int)(positions_y[i] * height);
+        }
+
+        // Update pixels
+        for (int i = 0; i < n_particles; i++) {
+            pixels[i][0] = (int)(particles[i].pos.x * width);
+            pixels[i][1] = (int)(particles[i].pos.y * height);
         }
 
         long double t4 = get_time();

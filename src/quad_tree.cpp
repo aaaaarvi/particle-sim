@@ -5,7 +5,7 @@
 
 namespace quad_tree {
 
-void init(node_t** root, double origo_x, double origo_y, double width) {
+void init(node_t** root, float origo_x, float origo_y, float width) {
     *root = new node_t;
     (*root)->north_west = nullptr;
     (*root)->north_east = nullptr;
@@ -16,28 +16,63 @@ void init(node_t** root, double origo_x, double origo_y, double width) {
     (*root)->width = width;
     (*root)->center_of_mass_x = origo_x;
     (*root)->center_of_mass_y = origo_y;
-    (*root)->mass = 0.0;
-    (*root)->id = -1;
+    (*root)->mass = 0.0f;
     (*root)->num_particles = 0;
 }
 
-void insert(node_t* node, double x, double y, double mass, int id) {
-    double half_width = node->width / 2.0;
-    double quarter_width = node->width / 4.0;
+void insert(node_t* node, float x, float y, float mass) {
+    float half_width = node->width / 2.0f;
+    float quarter_width = node->width / 4.0f;
+
+    /** /
+    if (half_width == 0) {
+        std::cout << "WARNING: half_width == 0\n";
+        return;
+    }
+    if (quarter_width == 0) {
+        std::cout << "WARNING: quarter_width == 0\n";
+        return;
+    }
+    //*/
 
     // If node is empty, insert particle here
     if (node->num_particles == 0) {
         // If outside bounds, do nothing
-        if (x <= node->origo_x - node->width / 2.0 || x >= node->origo_x + node->width / 2.0 ||
-            y <= node->origo_y - node->width / 2.0 || y >= node->origo_y + node->width / 2.0) {
-            std::cout << "Warning: Particle out of bounds (" << x << ", " << y << "), skipping\n";
+        /** /
+        if (x < node->origo_x - node->width ||
+            x > node->origo_x + node->width ||
+            y < node->origo_y - node->width ||
+            y > node->origo_y + node->width) {
+            std::cout << "WARNING:\n";
+            std::cout << "  Particle at (" << x << ", " << y << ") is out-of-bounds\n";
+            std::cout << "  of node at (" << node->origo_x << ", " << node->origo_y << "), width = " << node->width << " \n";
+            if (x < node->origo_x - node->width) {
+                std::cout << "  by " << node->origo_x - node->width - x << " units\n";
+            }
+            if (x > node->origo_x + node->width) {
+                std::cout << "  by " << x - node->origo_x + node->width << " units\n";
+            }
+            if (y < node->origo_y - node->width) {
+                std::cout << "  by " << node->origo_y - node->width - y << " units\n";
+            }
+            if (y > node->origo_y + node->width) {
+                std::cout << "  by " << y - node->origo_y + node->width << " units\n";
+            }
+            std::cout << "  skipping\n";
             return;
         }
+        //*/
         node->center_of_mass_x = x;
         node->center_of_mass_y = y;
         node->mass = mass;
-        node->id = id;
         node->num_particles = 1;
+        return;
+    }
+
+    // If positions are the same, only increase the mass
+    // (Occurs due to limited precision and at high particle densities)
+    if (node->num_particles == 1 && x == node->center_of_mass_x && y == node->center_of_mass_y) {
+        node->mass += mass;
         return;
     }
 
@@ -46,44 +81,43 @@ void insert(node_t* node, double x, double y, double mass, int id) {
         bool insert_north = node->center_of_mass_y >= node->origo_y;
         bool insert_west = node->center_of_mass_x <= node->origo_x;
         if (insert_north && insert_west) {
-            if (node->north_west == nullptr)
+            if (!node->north_west)
                 init(&node->north_west, node->origo_x - quarter_width, node->origo_y + quarter_width, half_width);
-            insert(node->north_west, node->center_of_mass_x, node->center_of_mass_y, node->mass, node->id);
+            insert(node->north_west, node->center_of_mass_x, node->center_of_mass_y, node->mass);
         } else if (insert_north && !insert_west) {
-            if (node->north_east == nullptr)
+            if (!node->north_east)
                 init(&node->north_east, node->origo_x + quarter_width, node->origo_y + quarter_width, half_width);
-            insert(node->north_east, node->center_of_mass_x, node->center_of_mass_y, node->mass, node->id);
+            insert(node->north_east, node->center_of_mass_x, node->center_of_mass_y, node->mass);
         } else if (!insert_north && insert_west) {
-            if (node->south_west == nullptr)
+            if (!node->south_west)
                 init(&node->south_west, node->origo_x - quarter_width, node->origo_y - quarter_width, half_width);
-            insert(node->south_west, node->center_of_mass_x, node->center_of_mass_y, node->mass, node->id);
+            insert(node->south_west, node->center_of_mass_x, node->center_of_mass_y, node->mass);
         } else {
-            if (node->south_east == nullptr)
+            if (!node->south_east)
                 init(&node->south_east, node->origo_x + quarter_width, node->origo_y - quarter_width, half_width);
-            insert(node->south_east, node->center_of_mass_x, node->center_of_mass_y, node->mass, node->id);
+            insert(node->south_east, node->center_of_mass_x, node->center_of_mass_y, node->mass);
         }
-        node->id = -1; // Reset id since it's no longer a leaf
     }
 
     // Insert new particle
     bool insert_north = y >= node->origo_y;
     bool insert_west = x <= node->origo_x;
     if (insert_north && insert_west) {
-        if (node->north_west == nullptr)
+        if (!node->north_west)
             init(&node->north_west, node->origo_x - quarter_width, node->origo_y + quarter_width, half_width);
-        insert(node->north_west, x, y, mass, id);
+        insert(node->north_west, x, y, mass);
     } else if (insert_north && !insert_west) {
-        if (node->north_east == nullptr)
+        if (!node->north_east)
             init(&node->north_east, node->origo_x + quarter_width, node->origo_y + quarter_width, half_width);
-        insert(node->north_east, x, y, mass, id);
+        insert(node->north_east, x, y, mass);
     } else if (!insert_north && insert_west) {
-        if (node->south_west == nullptr)
+        if (!node->south_west)
             init(&node->south_west, node->origo_x - quarter_width, node->origo_y - quarter_width, half_width);
-        insert(node->south_west, x, y, mass, id);
+        insert(node->south_west, x, y, mass);
     } else {
-        if (node->south_east == nullptr)
+        if (!node->south_east)
             init(&node->south_east, node->origo_x + quarter_width, node->origo_y - quarter_width, half_width);
-        insert(node->south_east, x, y, mass, id);
+        insert(node->south_east, x, y, mass);
     }
 
     // Update this nodes properties
@@ -94,28 +128,27 @@ void insert(node_t* node, double x, double y, double mass, int id) {
 }
 
 // Compute force recursively
-void compute_force(node_t* node, double* force_x, double* force_y, int id, double x, double y, double mass, double theta_max, double epsilon) {
+void compute_force(node_t* node, float* force_x, float* force_y, float x, float y, float mass, float theta_max, float epsilon) {
     if (node == nullptr) return;
     if (node->num_particles == 0) return;
-    if (node->id == id) return;
 
-    double dx = node->center_of_mass_x - x;
-    double dy = node->center_of_mass_y - y;
-    double dist = sqrt(dx * dx + dy * dy) + epsilon;
-    double theta = node->width / dist;
+    float dx = node->center_of_mass_x - x;
+    float dy = node->center_of_mass_y - y;
+    float dist = sqrtf(dx * dx + dy * dy) + epsilon;
+    float theta = node->width / dist;
 
     // Check if we can approximate
     if (theta < theta_max || node->num_particles == 1) {
         // Compute force contribution
-        double force_magnitude = (mass * node->mass) / (dist * dist);
+        float force_magnitude = (mass * node->mass) / (dist * dist);
         *force_x += force_magnitude * (dx / dist);
         *force_y += force_magnitude * (dy / dist);
     } else {
         // Recurse into children
-        compute_force(node->north_west, force_x, force_y, id, x, y, mass, theta_max, epsilon);
-        compute_force(node->north_east, force_x, force_y, id, x, y, mass, theta_max, epsilon);
-        compute_force(node->south_west, force_x, force_y, id, x, y, mass, theta_max, epsilon);
-        compute_force(node->south_east, force_x, force_y, id, x, y, mass, theta_max, epsilon);
+        compute_force(node->north_west, force_x, force_y, x, y, mass, theta_max, epsilon);
+        compute_force(node->north_east, force_x, force_y, x, y, mass, theta_max, epsilon);
+        compute_force(node->south_west, force_x, force_y, x, y, mass, theta_max, epsilon);
+        compute_force(node->south_east, force_x, force_y, x, y, mass, theta_max, epsilon);
     }
 }
 
@@ -135,8 +168,8 @@ void print_tree(node_t* node, int depth, bool is_root) {
     }
 
     if (node->num_particles == 1) {
-        printf("[leaf:%d] pos = (%.4f, %.4f), mass = %.1f\n",
-               node->id, node->center_of_mass_x, node->center_of_mass_y, node->mass);
+        printf("[leaf] pos = (%.4f, %.4f), mass = %.1f\n",
+               node->center_of_mass_x, node->center_of_mass_y, node->mass);
         return;
     }
 
@@ -159,6 +192,16 @@ void print_tree(node_t* node, int depth, bool is_root) {
         std::cout << std::string(depth + 1, ' ') << "SE: ";
         print_tree(node->south_east, depth + 1, false);
     }
+}
+
+// Compute size of the tree
+int tree_size(node_t* node) {
+    if (node == nullptr) return 0;
+    return 1 + 
+        tree_size(node->north_west) +
+        tree_size(node->north_east) +
+        tree_size(node->south_west) +
+        tree_size(node->south_east);
 }
 
 // Recursive function to free memory
@@ -322,7 +365,7 @@ Vector2<float> Quadtree::acc(Vector2<float> pos) {
     unsigned int node = ROOT;
 
     while (true) {
-        Node n = nodes[node];
+        const Node n = nodes[node];
         Vector2<float> d = n.pos - pos;
         float d_sq = d.norm_squared();
 

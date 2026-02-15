@@ -12,20 +12,20 @@ typedef struct quad_node {
     struct quad_node* north_east;
     struct quad_node* south_west;
     struct quad_node* south_east;
-    double origo_x;
-    double origo_y;
-    double width;
-    double center_of_mass_x;
-    double center_of_mass_y;
-    double mass;
-    int id;
+    float origo_x;
+    float origo_y;
+    float width;
+    float center_of_mass_x;
+    float center_of_mass_y;
+    float mass;
     int num_particles;
 } node_t;
 
-void init(node_t** root, double origo_x = 0.5, double origo_y = 0.5, double width = 100.0);
-void insert(node_t* node, double x, double y, double mass, int id);
-void compute_force(node_t* node, double* force_x, double* force_y, int id, double x, double y, double mass, double theta_max, double epsilon);
+void init(node_t** root, float origo_x = 0.5f, float origo_y = 0.5f, float width = 100.0f);
+void insert(node_t* node, float x, float y, float mass);
+void compute_force(node_t* node, float* force_x, float* force_y, float x, float y, float mass, float theta_max, float epsilon);
 void print_tree(node_t* node, int depth = 0, bool is_root = true);
+int tree_size(node_t* node);
 void free_tree(node_t* node);
 
 class Quad {

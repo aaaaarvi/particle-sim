@@ -3,30 +3,25 @@
 #include "quad_tree.h"
 
 void compute_forces(
-    int n_particles,
-    double* positions_x,
-    double* positions_y,
-    double* forces_x,
-    double* forces_y,
-    double extends,
-    double epsilon) {
+    std::vector<Particle<float>>* particles,
+    const float epsilon,
+    const int extends) {
 
     // Direct force computation, O(N^2)
+    // (Assumes all particles have mass 1.)
     /** /
     #pragma omp parallel for
-    for (int i = 0; i < n_particles; i++) {
-        forces_x[i] = 0;
-        forces_y[i] = 0;
-        for (int j = 0; j < n_particles; j++) {
-            if (i == j) continue;
-            for (double xx = -extends; xx <= extends; xx++) {
-                for (double yy = -extends; yy <= extends; yy++) {
-                    double dx = positions_x[i] - positions_x[j] + xx;
-                    double dy = positions_y[i] - positions_y[j] + yy;
-                    double dist = sqrt(dx*dx + dy*dy) + epsilon;
-                    //dist = dist < epsilon ? epsilon : dist;
-                    forces_x[i] += dx / (dist * dist * dist);
-                    forces_y[i] += dy / (dist * dist * dist);
+    for (auto& p : *particles) {
+        p.acc.x = 0.0f;
+        p.acc.y = 0.0f;
+        for (const auto& other : *particles) {
+            for (int xx = -extends; xx <= extends; xx++) {
+                for (int yy = -extends; yy <= extends; yy++) {
+                    float dx = other.pos.x - p.pos.x + (float)xx;
+                    float dy = other.pos.y - p.pos.y + (float)yy;
+                    float dist = sqrtf(dx * dx + dy * dy) + epsilon;
+                    p.acc.x += dx / (dist * dist * dist);
+                    p.acc.y += dy / (dist * dist * dist);
                 }
             }
         }
@@ -35,23 +30,41 @@ void compute_forces(
 
     // Barnes-Hut algorithm v1, O(N log N)
     /**/
-    double theta_max = 0.5;
+    float theta_max = 0.5f;
+
+    // Compute min/max x/y coordinates
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_y = std::numeric_limits<float>::max();
+    float max_y = std::numeric_limits<float>::lowest();
+    for (const auto& p : *particles) {
+        if (p.pos.x - (float)extends < min_x) min_x = p.pos.x - (float)extends;
+        if (p.pos.x + (float)extends > max_x) max_x = p.pos.x + (float)extends;
+        if (p.pos.y - (float)extends < min_y) min_y = p.pos.y - (float)extends;
+        if (p.pos.y + (float)extends > max_y) max_y = p.pos.y + (float)extends;
+    }
+    float origo_x = (min_x + max_x) * 0.5f;
+    float origo_y = (min_y + max_y) * 0.5f;
+    float width = std::max(max_x - min_x, max_y - min_y);
 
     // Initialize quadtree
     quad_tree::node_t* root;
-    quad_tree::init(&root);
-    for (int i = 0; i < n_particles; i++) {
-        quad_tree::insert(root, positions_x[i], positions_y[i], 1.0, i);
+    quad_tree::init(&root, origo_x, origo_y, width);
+    for (const auto& p : *particles) {
+        for (int xx = -extends; xx <= extends; xx++) {
+            for (int yy = -extends; yy <= extends; yy++) {
+                quad_tree::insert(root, p.pos.x + (float)xx, p.pos.y + (float)yy, p.mass);
+            }
+        }
     }
 
     // Compute forces
     #pragma omp parallel for
-    for (int i = 0; i < n_particles; i++) {
-        forces_x[i] = 0;
-        forces_y[i] = 0;
-        quad_tree::compute_force(root, &forces_x[i], &forces_y[i], i,
-                                 positions_x[i], positions_y[i], 1.0,
-                                 theta_max, epsilon);
+    for (auto& p : *particles) {
+        p.acc.x = 0.0f;
+        p.acc.y = 0.0f;
+        quad_tree::compute_force(
+            root, &p.acc.x, &p.acc.y, p.pos.x, p.pos.y, p.mass, theta_max, epsilon);
     }
 
     // Free quadtree
@@ -59,32 +72,23 @@ void compute_forces(
     //*/
 
     // Barnes-Hut algorithm v2, O(N log N)
+    // (Doesn't support 'extends'.)
     /** /
-    double theta_max = 0.5;
+    float theta_max = 0.5f;
 
-    std::vector<Particle<float>> particles;
-    for (int i = 0; i < n_particles; i++) {
-        particles.push_back(Particle<float>(
-            Vector2<float>((float)positions_x[i], (float)positions_y[i]),
-            Vector2<float>(0.0f, 0.0f)));
-    }
-
-    quad_tree::Quad quad = quad_tree::Quad(particles);
-
+    quad_tree::Quad quad = quad_tree::Quad(*particles);
     quad_tree::Quadtree quadtree = quad_tree::Quadtree(theta_max, epsilon);
     quadtree.clear(quad);
 
-    for (const auto& particle : particles) {
-        quadtree.insert(particle.pos, particle.mass);
+    for (const auto& p : *particles) {
+        quadtree.insert(p.pos, p.mass);
     }
 
     quadtree.propagate();
 
     #pragma omp parallel for
-    for (int i = 0; i < n_particles; i++) {
-        Vector2<float> acc = quadtree.acc(particles[i].pos) * particles[i].mass;
-        forces_x[i] = acc.x;
-        forces_y[i] = acc.y;
+    for (auto& p : *particles) {
+        p.acc = quadtree.acc(p.pos) * p.mass;
     }
     //*/
 }
