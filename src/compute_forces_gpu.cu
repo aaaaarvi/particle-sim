@@ -196,6 +196,7 @@ void compute_forces_barnes_hut_v1_(
     float* forces_y,
     float epsilon,
     int extends,
+    float theta_max,
     quad_tree::node_t* root) {
     /*
     threadIdx.x: The index of the thread within its block.
@@ -209,7 +210,7 @@ void compute_forces_barnes_hut_v1_(
         float fx = 0.0f;
         float fy = 0.0f;
         compute_force_quadtree_(
-            root, &fx, &fy, positions_x[i], positions_y[i], 1.0f, 0.5f, epsilon);
+            root, &fx, &fy, positions_x[i], positions_y[i], 1.0f, theta_max, epsilon);
         forces_x[i] = fx;
         forces_y[i] = fy;
     }
@@ -224,6 +225,7 @@ void compute_forces_barnes_hut_v2_(
     float* forces_y,
     float epsilon,
     int extends,
+    float theta_max,
     quad_tree_flat::node_t* nodes) {
     /*
     threadIdx.x: The index of the thread within its block.
@@ -237,7 +239,7 @@ void compute_forces_barnes_hut_v2_(
         float fx = 0.0f;
         float fy = 0.0f;
         compute_force_quadtree_flat_(
-            nodes, &fx, &fy, positions_x[i], positions_y[i], 1.0f, 0.5f, epsilon);
+            nodes, &fx, &fy, positions_x[i], positions_y[i], 1.0f, theta_max, epsilon);
         forces_x[i] = fx;
         forces_y[i] = fy;
     }
@@ -333,6 +335,7 @@ void compute_forces(
         d_forces_y,
         epsilon,
         extends,
+        theta_max,
         d_root);
 
     // Free device memory for quadtree
@@ -381,6 +384,7 @@ void compute_forces(
         d_forces_y,
         epsilon,
         extends,
+        theta_max,
         d_nodes);
 
     // Free device memory for flattened quadtree
