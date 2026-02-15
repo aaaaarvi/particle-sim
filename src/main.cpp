@@ -43,6 +43,7 @@ int main()
     // TODO: Optimize quadtree memory allocations
     // TODO: Change DrawPixels to DrawParticles, which accepts a vector of particles
     // TODO: Draw in grayscale/colormap -> higher particle density gives higher brightness
+    // TODO: Account for mass in direct and GPU implementations
 
     // Parameters
     const int n_particles = 100000; // 1000
