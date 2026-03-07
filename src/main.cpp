@@ -44,6 +44,9 @@ int main()
     // TODO: Change DrawPixels to DrawParticles, which accepts a vector of particles
     // TODO: Draw in grayscale/colormap -> higher particle density gives higher brightness
     // TODO: Account for mass in direct and GPU implementations
+    // TODO: Use thrust for cuda memory management
+    // TODO: Implement Morton code-based sorting and tree construction
+    // TODO: Parallelize quadtree construction by building (four/sixteen) subtrees of the root in parallel
 
     // Parameters
     const int n_particles = 100000; // 1000
