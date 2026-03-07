@@ -25,10 +25,17 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # install nsight systems cli
+#RUN apt update && \
+#    apt install -y --no-install-recommends gnupg && \
+#    echo "deb http://developer.download.nvidia.com/devtools/repos/ubuntu$(. /etc/os-release; echo "$VERSION_ID" | tr -d .)/$(dpkg --print-architecture) /" | \
+#        tee /etc/apt/sources.list.d/nvidia-devtools.list && \
+#    apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+#    apt update && \
+#    apt install -y nsight-systems-cli
+
+# install nsight systems for desktop
 RUN apt update && \
-    apt install -y --no-install-recommends gnupg && \
-    echo "deb http://developer.download.nvidia.com/devtools/repos/ubuntu$(. /etc/os-release; echo "$VERSION_ID" | tr -d .)/$(dpkg --print-architecture) /" | \
-        tee /etc/apt/sources.list.d/nvidia-devtools.list && \
-    apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
-    apt update && \
-    apt install -y nsight-systems-cli
+    apt install -y --no-install-recommends libxkbfile-dev && \
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+    add-apt-repository -y "deb https://developer.download.nvidia.com/devtools/repos/ubuntu$(. /etc/os-release; echo "$VERSION_ID" | tr -d .)/$(dpkg --print-architecture)/ /" && \
+    apt install -y nsight-systems
